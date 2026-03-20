@@ -588,6 +588,7 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.POST("/usage/import", s.mgmt.ImportUsageStatistics)
 		mgmt.GET("/runtime-info", s.mgmt.GetRuntimeInfo)
 		mgmt.GET("/config", s.mgmt.GetConfig)
+		mgmt.POST("/reset-default", s.mgmt.ResetDefault)
 		mgmt.GET("/config.yaml", s.mgmt.GetConfigYAML)
 		mgmt.PUT("/config.yaml", s.mgmt.PutConfigYAML)
 		mgmt.GET("/latest-version", s.mgmt.GetLatestVersion)

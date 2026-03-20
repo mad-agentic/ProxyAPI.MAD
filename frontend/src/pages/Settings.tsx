@@ -1,8 +1,10 @@
-import { Save, ShieldCheck, Network, Loader2, Database, FileText } from "lucide-react"
+import { Save, ShieldCheck, Network, Loader2, Database, FileText, RotateCcw } from "lucide-react"
 import { useEffect, useState } from "react"
-import { fetchConfig, fetchLoggingToFile, fetchRuntimeInfo, type RuntimeInfo, updateLoggingToFile } from "../api/client"
+import { useNavigate } from "react-router-dom"
+import { fetchConfig, fetchLoggingToFile, fetchRuntimeInfo, resetDefaultSettings, type RuntimeInfo, updateLoggingToFile } from "../api/client"
 
 export function Settings() {
+  const navigate = useNavigate()
   const [config, setConfig] = useState<any>(null)
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -10,6 +12,9 @@ export function Settings() {
   const [savingLogging, setSavingLogging] = useState(false)
   const [loggingMessage, setLoggingMessage] = useState<string | null>(null)
   const [loggingError, setLoggingError] = useState<string | null>(null)
+  const [resetting, setResetting] = useState(false)
+  const [resetMessage, setResetMessage] = useState<string | null>(null)
+  const [resetError, setResetError] = useState<string | null>(null)
 
   const loadSettings = async () => {
     const [configData, loggingEnabled, runtimeData] = await Promise.all([
@@ -49,6 +54,30 @@ export function Settings() {
       setLoggingError(err?.message || "Failed to update logging-to-file.")
     } finally {
       setSavingLogging(false)
+    }
+  }
+
+  const handleResetDefault = async () => {
+    if (resetting) return
+    const confirmed = window.confirm("Reset to default and clear all current auth/cache/log/usage data? This action cannot be undone.")
+    if (!confirmed) return
+    const token = window.prompt("Type RESET to confirm")
+    if ((token || "").trim().toUpperCase() !== "RESET") return
+
+    setResetting(true)
+    setResetMessage(null)
+    setResetError(null)
+
+    try {
+      await resetDefaultSettings()
+      localStorage.removeItem('proxyapi_chat_history_v1')
+      await loadSettings()
+      setResetMessage("Reset completed successfully. Redirecting to Dashboard...")
+      window.setTimeout(() => navigate("/"), 300)
+    } catch (err: any) {
+      setResetError(err?.message || "Reset failed.")
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -259,11 +288,24 @@ export function Settings() {
         </section>
 
         <div className="flex justify-end pt-4">
-          <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl transition-colors font-medium shadow-lg shadow-emerald-500/20">
-            <Save className="w-4 h-4" />
-            Save Configurations
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleResetDefault}
+              disabled={resetting}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl transition-colors font-medium shadow-lg shadow-red-500/20"
+            >
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+              Reset to Default
+            </button>
+            <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl transition-colors font-medium shadow-lg shadow-emerald-500/20">
+              <Save className="w-4 h-4" />
+              Save Configurations
+            </button>
+          </div>
         </div>
+        {resetMessage && <p className="text-xs text-emerald-400 text-right">{resetMessage}</p>}
+        {resetError && <p className="text-xs text-red-400 text-right">{resetError}</p>}
       </div>
     </div>
   )

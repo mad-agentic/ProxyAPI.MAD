@@ -475,6 +475,27 @@ func (s *RequestStatistics) Snapshot() StatisticsSnapshot {
 	return result
 }
 
+// Reset clears all in-memory usage aggregates and persists an empty snapshot when persistence is enabled.
+func (s *RequestStatistics) Reset() {
+	if s == nil {
+		return
+	}
+
+	s.mu.Lock()
+	s.totalRequests = 0
+	s.successCount = 0
+	s.failureCount = 0
+	s.totalTokens = 0
+	s.apis = make(map[string]*apiStats)
+	s.requestsByDay = make(map[string]int64)
+	s.requestsByHour = make(map[int]int64)
+	s.tokensByDay = make(map[string]int64)
+	s.tokensByHour = make(map[int]int64)
+	s.mu.Unlock()
+
+	s.schedulePersist()
+}
+
 type MergeResult struct {
 	Added   int64 `json:"added"`
 	Skipped int64 `json:"skipped"`

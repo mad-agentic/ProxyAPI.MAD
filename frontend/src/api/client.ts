@@ -255,6 +255,17 @@ export async function fetchConfig(): Promise<any> {
   return res.json()
 }
 
+export async function resetDefaultSettings(): Promise<any> {
+  const res = await fetch(withApiBase(BASE_URL + "/reset-default"), {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = (await res.text()).trim()
+    throw new Error(err || 'Failed to reset to default')
+  }
+  return res.json()
+}
+
 export interface RuntimeInfo {
   paths?: {
     config_file?: string
