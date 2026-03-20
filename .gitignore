@@ -1,0 +1,54 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local AI notes / workspace metadata
+AIMemory/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/.copilot_runtime_paths.patch
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Backend runtime / local config
+proxyapi_core/bin/
+proxyapi_core/logs/
+proxyapi_core/conv/
+proxyapi_core/temp/
+proxyapi_core/refs/
+proxyapi_core/auths/
+!proxyapi_core/auths/.gitkeep
+proxyapi_core/pgstore/
+proxyapi_core/gitstore/
+proxyapi_core/objectstore/
+proxyapi_core/config.yaml
+
+# Local scripts / metadata
+.codex/
+.claude/
+.gemini/
+.serena/
+.agent/
+.agents/
+.opencode/
+.bmad/
+_bmad/
+_bmad-output/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python caches
+__pycache__/
+*.pyc
+/.github/prompts/ui-ux-pro-max

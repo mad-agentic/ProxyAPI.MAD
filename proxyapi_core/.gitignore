@@ -1,0 +1,42 @@
+# Binaries
+proxyapi-mad
+cli-proxy-api
+*.exe
+
+# Configuration
+config.yaml
+.env
+
+# Generated content
+bin/*
+logs/*
+conv/*
+temp/*
+refs/*
+
+# Storage backends
+pgstore/*
+gitstore/*
+objectstore/*
+
+# Authentication data
+auths/*
+!auths/.gitkeep
+
+# Tooling metadata
+.vscode/*
+.codex/*
+.claude/*
+.gemini/*
+.serena/*
+.agent/*
+.agents/*
+.opencode/*
+.idea/*
+.bmad/*
+_bmad/*
+_bmad-output/*
+
+# macOS
+.DS_Store
+._*
