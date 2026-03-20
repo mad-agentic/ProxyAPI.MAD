@@ -9,6 +9,7 @@ import (
 
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/auth/codex"
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/browser"
+
 	// legacy client removed
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/config"
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/misc"
@@ -32,7 +33,8 @@ func (a *CodexAuthenticator) Provider() string {
 }
 
 func (a *CodexAuthenticator) RefreshLead() *time.Duration {
-	return new(5 * 24 * time.Hour)
+	d := 5 * 24 * time.Hour
+	return &d
 }
 
 func (a *CodexAuthenticator) Login(ctx context.Context, cfg *config.Config, opts *LoginOptions) (*coreauth.Auth, error) {

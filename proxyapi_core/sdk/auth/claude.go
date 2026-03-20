@@ -9,6 +9,7 @@ import (
 
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/auth/claude"
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/browser"
+
 	// legacy client removed
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/config"
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/misc"
@@ -32,7 +33,8 @@ func (a *ClaudeAuthenticator) Provider() string {
 }
 
 func (a *ClaudeAuthenticator) RefreshLead() *time.Duration {
-	return new(4 * time.Hour)
+	d := 4 * time.Hour
+	return &d
 }
 
 func (a *ClaudeAuthenticator) Login(ctx context.Context, cfg *config.Config, opts *LoginOptions) (*coreauth.Auth, error) {

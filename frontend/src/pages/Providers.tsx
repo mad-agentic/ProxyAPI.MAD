@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Loader2 as _L, CheckCircle2, XCircle, Zap, Key, RefreshCw, Activity, AlertTriangle, ShieldOff, Database } from 'lucide-react'
-import { fetchAuthFilesDetailed, fetchAuthStatus, type AuthFileEntry } from '../api/client'
+import { Loader2 as _L, CheckCircle2, XCircle, Zap, Key, RefreshCw, Activity, AlertTriangle, ShieldOff, Database, Trash2 } from 'lucide-react'
+import { fetchAuthFilesDetailed, fetchAuthStatus, deleteAuthFile, type AuthFileEntry } from '../api/client'
 import { OAuthConnectModal } from '../components/OAuthConnectModal'
 
 interface ProviderInfo {
@@ -78,6 +78,7 @@ export function Providers() {
   const [authFiles, setAuthFiles] = useState<AuthFileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState<string | null>(null)
+  const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const normalizeProviderId = (raw?: string) => {
@@ -132,6 +133,28 @@ export function Providers() {
 
   const handleConnectSuccess = () => {
     setRefreshKey(k => k + 1)
+  }
+
+  const handleDisconnect = async (providerId: string) => {
+    const providerFiles = authFiles.filter(
+      file => normalizeProviderId(file.provider || file.type) === providerId
+    )
+    if (providerFiles.length === 0) return
+    const providerName = PROVIDERS.find(p => p.id === providerId)?.name || providerId
+    if (!window.confirm(`Disconnect ${providerName}? This will delete all ${providerFiles.length} credential(s) for this provider.`)) return
+    setDisconnecting(providerId)
+    try {
+      for (const file of providerFiles) {
+        const name = file.id || file.name
+        if (name) await deleteAuthFile(name)
+      }
+      setRefreshKey(k => k + 1)
+    } catch (err) {
+      console.error('Failed to disconnect provider:', err)
+      alert('Failed to disconnect: ' + String(err))
+    } finally {
+      setDisconnecting(null)
+    }
   }
 
   const connectedCount = PROVIDERS.filter(p => authStatus[p.id]).length
@@ -328,13 +351,25 @@ export function Providers() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   {isConnected ? (
-                    <button
-                      onClick={() => handleConnect(provider.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 border border-gray-700/50 hover:border-gray-600 rounded-xl bg-gray-900/30 hover:bg-gray-800 transition-all"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Re-authorize
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleConnect(provider.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 border border-gray-700/50 hover:border-gray-600 rounded-xl bg-gray-900/30 hover:bg-gray-800 transition-all"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Re-authorize
+                      </button>
+                      <button
+                        onClick={() => handleDisconnect(provider.id)}
+                        disabled={disconnecting === provider.id}
+                        title="Disconnect provider"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/60 rounded-xl bg-red-900/10 hover:bg-red-900/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {disconnecting === provider.id
+                          ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={() => handleConnect(provider.id)}

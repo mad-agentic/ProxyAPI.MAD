@@ -8,6 +8,7 @@ import (
 
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/auth/qwen"
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/browser"
+
 	// legacy client removed
 	"github.com/mad-agentic/ProxyAPI.MAD/v6/internal/config"
 	coreauth "github.com/mad-agentic/ProxyAPI.MAD/v6/sdk/cliproxy/auth"
@@ -27,7 +28,8 @@ func (a *QwenAuthenticator) Provider() string {
 }
 
 func (a *QwenAuthenticator) RefreshLead() *time.Duration {
-	return new(3 * time.Hour)
+	d := 3 * time.Hour
+	return &d
 }
 
 func (a *QwenAuthenticator) Login(ctx context.Context, cfg *config.Config, opts *LoginOptions) (*coreauth.Auth, error) {

@@ -453,6 +453,16 @@ export async function postOAuthCallback(provider: string, code?: string): Promis
   return res.json()
 }
 
+export async function deleteAuthFile(name: string): Promise<void> {
+  const res = await fetch(withApiBase(BASE_URL + `/auth-files?name=${encodeURIComponent(name)}`), {
+    method: 'DELETE',
+  })
+  if (!res.ok) {
+    const err = (await res.text()).trim()
+    throw new Error(err || 'Failed to delete auth file')
+  }
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Models & Chat
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
