@@ -4,6 +4,7 @@
 
 const BASE_URL = "/v0/management"
 const MANAGEMENT_KEY = "proxyapi-management-secret-key-admin"
+export const CHAT_CONFIG_UPDATED_EVENT = 'proxyapi:chat-config-updated'
 
 const RUNTIME_API_BASE =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE) ||
@@ -20,6 +21,15 @@ function getManagementHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     'X-Management-Key': MANAGEMENT_KEY,
   }
+}
+
+function notifyChatConfigChanged(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(CHAT_CONFIG_UPDATED_EVENT))
+}
+
+function invalidateCachedApiKey(): void {
+  _cachedApiKey = ""
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -48,6 +58,9 @@ export async function addApiKey(value: string): Promise<void> {
     const err = (await res.text()).trim()
     throw new Error(err || "Failed to add API key")
   }
+
+  invalidateCachedApiKey()
+  notifyChatConfigChanged()
 }
 
 export async function updateApiKey(index: number, value: string): Promise<void> {
@@ -63,6 +76,9 @@ export async function updateApiKey(index: number, value: string): Promise<void> 
     const err = (await res.text()).trim()
     throw new Error(err || "Failed to update API key")
   }
+
+  invalidateCachedApiKey()
+  notifyChatConfigChanged()
 }
 
 export async function deleteApiKey(index: number): Promise<void> {
@@ -74,6 +90,9 @@ export async function deleteApiKey(index: number): Promise<void> {
     const err = (await res.text()).trim()
     throw new Error(err || "Failed to delete API key")
   }
+
+  invalidateCachedApiKey()
+  notifyChatConfigChanged()
 }
 
 export function getBridgeEndpoint(): string {
@@ -81,14 +100,25 @@ export function getBridgeEndpoint(): string {
   return base ? `${base}/v1` : `${window.location.origin}/v1`
 }
 
-export type ProviderKeyChannel = 'gemini' | 'claude' | 'codex' | 'openai' | 'vertex'
+export type ProviderKeyChannel = 'gemini' | 'claude' | 'codex' | 'openai' | 'vertex' | 'anthropic'
 
 export interface ProviderApiKeyEntry {
   apiKey: string
   baseUrl?: string
 }
 
-const providerChannelEndpoint: Record<Exclude<ProviderKeyChannel, 'openai'>, string> = {
+interface OpenAICompatibleModelEntry {
+  name: string
+  alias: string
+}
+
+interface ManagementApiCallResponse {
+  status_code: number
+  header?: Record<string, string[]>
+  body?: string
+}
+
+const providerChannelEndpoint: Record<Exclude<ProviderKeyChannel, 'openai' | 'anthropic'>, string> = {
   gemini: '/gemini-api-key',
   claude: '/claude-api-key',
   codex: '/codex-api-key',
@@ -118,7 +148,7 @@ async function putJson(path: string, body: any): Promise<void> {
   }
 }
 
-async function fetchRawProviderEntries(channel: Exclude<ProviderKeyChannel, 'openai'>): Promise<any[]> {
+async function fetchRawProviderEntries(channel: Exclude<ProviderKeyChannel, 'openai' | 'anthropic'>): Promise<any[]> {
   const endpoint = providerChannelEndpoint[channel]
   const data = await fetchJson(endpoint)
   const responseKey = `${channel}-api-key`
@@ -130,15 +160,101 @@ async function fetchRawOpenAICompatibilityEntries(): Promise<any[]> {
   return Array.isArray(data?.['openai-compatibility']) ? data['openai-compatibility'] : []
 }
 
+async function performManagementApiCall(method: string, url: string, header?: Record<string, string>, data?: string): Promise<ManagementApiCallResponse> {
+  const res = await fetch(withApiBase(BASE_URL + '/api-call'), {
+    method: 'POST',
+    headers: getManagementHeaders(),
+    body: JSON.stringify({ method, url, header, data }),
+  })
+
+  if (!res.ok) {
+    const err = (await res.text()).trim()
+    throw new Error(err || `Failed to call management API endpoint: ${url}`)
+  }
+
+  return res.json()
+}
+
+function buildOpenAIModelsEndpoint(baseUrl: string): string {
+  const normalized = String(baseUrl || '').trim().replace(/\/+$/, '')
+  if (!normalized) return ''
+  if (/\/models$/i.test(normalized)) return normalized
+  return `${normalized}/models`
+}
+
+async function fetchOpenAICompatibleModels(baseUrl: string, apiKey: string, headers?: Record<string, string>): Promise<OpenAICompatibleModelEntry[]> {
+  const endpoint = buildOpenAIModelsEndpoint(baseUrl)
+  if (!endpoint) return []
+
+  const mergedHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(headers || {}),
+  }
+
+  const hasAuthorizationHeader = Object.keys(mergedHeaders).some((key) => key.toLowerCase() === 'authorization')
+  if (!hasAuthorizationHeader && apiKey.trim()) {
+    mergedHeaders.Authorization = `Bearer ${apiKey.trim()}`
+  }
+
+  const apiCallResult = await performManagementApiCall('GET', endpoint, mergedHeaders)
+  if (apiCallResult.status_code < 200 || apiCallResult.status_code >= 300) {
+    const body = String(apiCallResult.body || '').trim()
+    throw new Error(body || `Failed to fetch upstream models from ${endpoint} (HTTP ${apiCallResult.status_code})`)
+  }
+
+  let data: any = {}
+  try {
+    data = JSON.parse(String(apiCallResult.body || '{}'))
+  } catch {
+    throw new Error(`Invalid model list response from ${endpoint}`)
+  }
+
+  const rawModels = Array.isArray(data?.data) ? data.data : []
+
+  return rawModels
+    .map((item: any) => String(item?.id || item?.name || '').trim())
+    .filter(Boolean)
+    .map((name: string) => ({ name, alias: '' }))
+}
+
+export async function syncOpenAICompatibleModelsIfMissing(providerName = 'openai'): Promise<number> {
+  const entries = await fetchRawOpenAICompatibilityEntries()
+  const targetIndex = entries.findIndex((entry: any) => String(entry?.name || '').trim().toLowerCase() === providerName.toLowerCase())
+  if (targetIndex === -1) return 0
+
+  const target = entries[targetIndex]
+  const configuredModels = Array.isArray(target?.models) ? target.models : []
+  if (configuredModels.length > 0) return 0
+
+  const baseUrl = String(target?.['base-url'] || target?.baseUrl || '').trim()
+  const apiKeyEntries = Array.isArray(target?.['api-key-entries']) ? target['api-key-entries'] : []
+  const firstApiKey = String(apiKeyEntries[0]?.['api-key'] || '').trim()
+  const headers = target?.headers && typeof target.headers === 'object' ? target.headers : undefined
+  if (!baseUrl || !firstApiKey) return 0
+
+  const discoveredModels = await fetchOpenAICompatibleModels(baseUrl, firstApiKey, headers)
+  if (discoveredModels.length === 0) return 0
+
+  entries[targetIndex] = {
+    ...target,
+    models: discoveredModels,
+  }
+
+  await putJson('/openai-compatibility', entries)
+  notifyChatConfigChanged()
+  return discoveredModels.length
+}
+
 export async function fetchProviderApiKeys(channel: ProviderKeyChannel): Promise<ProviderApiKeyEntry[]> {
-  if (channel === 'openai') {
+  if (channel === 'openai' || channel === 'anthropic') {
     const entries = await fetchRawOpenAICompatibilityEntries()
-    const openAIEntry = entries.find((entry: any) => String(entry?.name || '').toLowerCase() === 'openai') || entries[0]
-    const apiKeyEntries = Array.isArray(openAIEntry?.['api-key-entries']) ? openAIEntry['api-key-entries'] : []
+    const targetEntry = entries.find((entry: any) => String(entry?.name || '').toLowerCase() === channel) || (channel === 'openai' ? entries[0] : null)
+    if (!targetEntry) return []
+    const apiKeyEntries = Array.isArray(targetEntry?.['api-key-entries']) ? targetEntry['api-key-entries'] : []
     return apiKeyEntries
       .map((entry: any) => ({
         apiKey: String(entry?.['api-key'] || '').trim(),
-        baseUrl: String(openAIEntry?.['base-url'] || '').trim(),
+        baseUrl: String(targetEntry?.['base-url'] || '').trim(),
       }))
       .filter(entry => entry.apiKey)
   }
@@ -156,14 +272,17 @@ export async function addProviderApiKey(channel: ProviderKeyChannel, apiKeyValue
   const apiKey = apiKeyValue.trim()
   if (!apiKey) throw new Error('API key is required')
 
-  if (channel === 'openai') {
+  if (channel === 'openai' || channel === 'anthropic') {
     const entries = await fetchRawOpenAICompatibilityEntries()
-    const targetIndex = entries.findIndex((entry: any) => String(entry?.name || '').toLowerCase() === 'openai')
+    const targetIndex = entries.findIndex((entry: any) => String(entry?.name || '').toLowerCase() === channel)
+
+    let baseUrlDefault = 'https://api.openai.com/v1'
+    if (channel === 'anthropic') baseUrlDefault = 'https://api.anthropic.com/v1'
 
     if (targetIndex === -1) {
       entries.push({
-        name: 'openai',
-        'base-url': 'https://api.openai.com/v1',
+        name: channel,
+        'base-url': baseUrlDefault,
         'api-key-entries': [{ 'api-key': apiKey }],
       })
     } else {
@@ -176,6 +295,8 @@ export async function addProviderApiKey(channel: ProviderKeyChannel, apiKeyValue
     }
 
     await putJson('/openai-compatibility', entries)
+    await syncOpenAICompatibleModelsIfMissing(channel)
+    notifyChatConfigChanged()
     return
   }
 
@@ -188,14 +309,15 @@ export async function addProviderApiKey(channel: ProviderKeyChannel, apiKeyValue
   if (channel === 'codex') newEntry['base-url'] = 'https://api.openai.com/v1'
 
   await putJson(endpoint, [...currentEntries, newEntry])
+  notifyChatConfigChanged()
 }
 
 export async function deleteProviderApiKey(channel: ProviderKeyChannel, index: number): Promise<void> {
   if (index < 0) return
 
-  if (channel === 'openai') {
+  if (channel === 'openai' || channel === 'anthropic') {
     const entries = await fetchRawOpenAICompatibilityEntries()
-    const targetIndex = entries.findIndex((entry: any) => String(entry?.name || '').toLowerCase() === 'openai')
+    const targetIndex = entries.findIndex((entry: any) => String(entry?.name || '').toLowerCase() === channel)
     if (targetIndex === -1) return
 
     const current = entries[targetIndex]
@@ -210,6 +332,7 @@ export async function deleteProviderApiKey(channel: ProviderKeyChannel, index: n
     }
 
     await putJson('/openai-compatibility', entries)
+    notifyChatConfigChanged()
     return
   }
 
@@ -218,6 +341,7 @@ export async function deleteProviderApiKey(channel: ProviderKeyChannel, index: n
   if (index >= currentEntries.length) return
   currentEntries.splice(index, 1)
   await putJson(endpoint, currentEntries)
+  notifyChatConfigChanged()
 }
 
 export async function fetchUsage(): Promise<any> {
@@ -514,32 +638,60 @@ export async function deleteAuthFile(name: string): Promise<void> {
 // Models & Chat
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export async function fetchModels(): Promise<string[]> {
-  const apiKey = await getFirstApiKey()
-  const res = await fetch(withApiBase("/v1/models"), {
-    headers: { Authorization: "Bearer " + apiKey },
-  })
+async function fetchModelIdsOnce(): Promise<string[]> {
+  const res = await fetchWithBridgeApiKey((apiKey) =>
+    fetch(withApiBase("/v1/models"), {
+      headers: { Authorization: "Bearer " + apiKey },
+    })
+  )
+
   if (!res.ok) {
     const details = (await res.text()).trim()
     throw new Error(details || `Failed to fetch models (HTTP ${res.status})`)
   }
+
   const data = await res.json()
   return (data.data || []).map((m: any) => m.id as string)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export async function fetchModels(): Promise<string[]> {
+  let modelIds = await fetchModelIdsOnce()
+  if (modelIds.length > 0) return modelIds
+
+  try {
+    await syncOpenAICompatibleModelsIfMissing('openai')
+  } catch {
+    // Ignore sync errors and continue polling existing runtime state
+  }
+
+  const retryDelaysMs = [500, 1000, 1500, 2000, 2500]
+  for (const delayMs of retryDelaysMs) {
+    await sleep(delayMs)
+    modelIds = await fetchModelIdsOnce()
+    if (modelIds.length > 0) return modelIds
+  }
+
+  return modelIds
 }
 
 export async function sendChat(
   model: string,
   messages: { role: string; content: string }[]
 ): Promise<string> {
-  const apiKey = await getFirstApiKey()
-  const res = await fetch(withApiBase("/v1/chat/completions"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + apiKey,
-    },
-    body: JSON.stringify({ model, messages, stream: false }),
-  })
+  const res = await fetchWithBridgeApiKey((apiKey) =>
+    fetch(withApiBase("/v1/chat/completions"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey,
+      },
+      body: JSON.stringify({ model, messages, stream: false }),
+    })
+  )
   if (!res.ok) {
     const errText = await res.text()
     throw new Error(`HTTP ${res.status}: ${errText}`)
@@ -550,6 +702,21 @@ export async function sendChat(
 
 // Cache local API key for /v1 requests
 let _cachedApiKey = ""
+async function fetchWithBridgeApiKey(request: (apiKey: string) => Promise<Response>): Promise<Response> {
+  const initialApiKey = await getFirstApiKey()
+  let res = await request(initialApiKey)
+
+  if ((res.status === 401 || res.status === 403) && _cachedApiKey) {
+    invalidateCachedApiKey()
+    const refreshedApiKey = await getFirstApiKey()
+    if (refreshedApiKey && refreshedApiKey !== initialApiKey) {
+      res = await request(refreshedApiKey)
+    }
+  }
+
+  return res
+}
+
 async function getFirstApiKey(): Promise<string> {
   if (_cachedApiKey) return _cachedApiKey
   try {

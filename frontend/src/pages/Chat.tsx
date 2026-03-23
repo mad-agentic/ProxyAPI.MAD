@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Send, Bot, User, Loader2, MessageSquare, Zap, ChevronDown, Plus, Trash2 } from 'lucide-react'
-import { fetchModels, sendChat } from '../api/client'
+import { CHAT_CONFIG_UPDATED_EVENT, fetchModels, sendChat, syncOpenAICompatibleModelsIfMissing } from '../api/client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -25,6 +25,7 @@ interface ChatConversation {
 }
 
 const HISTORY_STORAGE_KEY = 'proxyapi_chat_history_v1'
+const FALLBACK_OPENAI_MODELS = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o']
 
 const AGENTS: AgentPreset[] = [
   {
@@ -98,6 +99,24 @@ function getProviderLabel(providerId: string): string {
   return labels[providerId] || providerId
 }
 
+function readFallbackModelsFromHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+
+    const unique = new Set<string>()
+    for (const item of parsed) {
+      const model = String(item?.model || '').trim()
+      if (model) unique.add(model)
+    }
+    return Array.from(unique)
+  } catch {
+    return []
+  }
+}
+
 export function Chat() {
   const [input, setInput] = useState('')
   const [models, setModels] = useState<string[]>([])
@@ -106,6 +125,7 @@ export function Chat() {
   const [isLoading, setIsLoading] = useState(false)
   const [loadingModels, setLoadingModels] = useState(true)
   const [modelsError, setModelsError] = useState('')
+  const [modelsReloadToken, setModelsReloadToken] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -175,9 +195,37 @@ export function Chat() {
   }, [conversations])
 
   useEffect(() => {
+    let cancelled = false
+
     setLoadingModels(true)
-    fetchModels()
+    const loadModels = async () => {
+      let ids = await fetchModels()
+      if (ids.length === 0) {
+        try {
+          const recoveredCount = await syncOpenAICompatibleModelsIfMissing('openai')
+          if (recoveredCount > 0) {
+            ids = await fetchModels()
+          }
+        } catch (recoveryErr) {
+          console.error('Failed to recover OpenAI-compatible models:', recoveryErr)
+        }
+      }
+
+      if (ids.length === 0) {
+        const fromHistory = readFallbackModelsFromHistory()
+        if (fromHistory.length > 0) {
+          ids = fromHistory
+        } else {
+          ids = [...FALLBACK_OPENAI_MODELS]
+        }
+      }
+
+      return ids
+    }
+
+    loadModels()
       .then(ids => {
+        if (cancelled) return
         setModels(ids)
         const firstModel = ids[0] || ''
         setConversations(prev => {
@@ -196,14 +244,32 @@ export function Chat() {
             }
           })
         })
-        setModelsError('')
+        const noModelsMessage = 'No models available. Add a provider model list or reconnect the provider API key.'
+        setModelsError(ids.length === 0 ? noModelsMessage : '')
       })
       .catch(err => {
+        if (cancelled) return
         const details = err?.message ? ` (${err.message})` : ''
         setModelsError(`Could not load models. Make sure a provider is connected${details}.`)
         console.error('Failed to fetch models:', err)
       })
-      .finally(() => setLoadingModels(false))
+      .finally(() => {
+        if (cancelled) return
+        setLoadingModels(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [modelsReloadToken])
+
+  useEffect(() => {
+    const handleChatConfigUpdated = () => {
+      setModelsReloadToken(value => value + 1)
+    }
+
+    window.addEventListener(CHAT_CONFIG_UPDATED_EVENT, handleChatConfigUpdated)
+    return () => window.removeEventListener(CHAT_CONFIG_UPDATED_EVENT, handleChatConfigUpdated)
   }, [])
 
   useEffect(() => {

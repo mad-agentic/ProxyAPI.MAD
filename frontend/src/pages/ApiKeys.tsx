@@ -24,6 +24,13 @@ function maskKey(value: string): string {
   return `${value.slice(0, 6)}...${value.slice(-4)}`
 }
 
+function normalizeOpenAICompatBaseUrl(raw: string): string {
+  const trimmed = String(raw || '').trim().replace(/\/+$/, '')
+  if (!trimmed) return 'https://api.anthropic.com/v1'
+  if (/\/v1$/i.test(trimmed)) return trimmed
+  return `${trimmed}/v1`
+}
+
 export function ApiKeys() {
   const [bridgeKeys, setBridgeKeys] = useState<string[]>([])
   const [loadingBridge, setLoadingBridge] = useState(true)
@@ -42,16 +49,32 @@ export function ApiKeys() {
     codex: [],
     openai: [],
     vertex: [],
+    anthropic: [],
   })
   const [loadingProvider, setLoadingProvider] = useState(false)
   const [providerError, setProviderError] = useState<string | null>(null)
   const [newProviderKeyInput, setNewProviderKeyInput] = useState("")
   const [providerWorking, setProviderWorking] = useState(false)
   const [copiedProviderIndex, setCopiedProviderIndex] = useState<number | null>(null)
+  
+  // Anthropic custom configuration
+  const [anthropicBaseUrl, setAnthropicBaseUrl] = useState('https://api.anthropic.com/v1')
+  const [anthropicAuthToken, setAnthropicAuthToken] = useState('')
+  const [anthropicModels, setAnthropicModels] = useState(['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-6'])
+  const [editingAnthropicModel, setEditingAnthropicModel] = useState('')
+  const [anthropicConfigChanged, setAnthropicConfigChanged] = useState(false)
+
+  const MANAGEMENT_KEY = 'proxyapi-management-secret-key-admin'
+  const runtimeApiBase =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE) ||
+    (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:8317' : '')
+
+  const managementBaseUrl = `${String(runtimeApiBase || '').replace(/\/$/, '')}/v0/management`
 
   const PROVIDER_TABS: ProviderCardInfo[] = [
     { id: 'gemini', name: 'Gemini API', description: 'Connect Gemini models via direct API key.', gradient: 'from-blue-500/10 to-indigo-500/10' },
     { id: 'claude', name: 'Claude API', description: 'Connect Anthropic Claude models via API key.', gradient: 'from-orange-500/10 to-amber-500/10' },
+    { id: 'anthropic', name: 'Anthropic OpenAI-Compatible', description: 'Connect Anthropic via OpenAI-compatible interface.', gradient: 'from-orange-600/10 to-red-500/10' },
     { id: 'codex', name: 'Codex API', description: 'Connect Codex and GPT coding models via API key.', gradient: 'from-emerald-500/10 to-teal-500/10' },
     { id: 'openai', name: 'OpenAI API', description: 'Connect OpenAI-compatible models via API key.', gradient: 'from-gray-500/10 to-slate-500/10' },
     { id: 'vertex', name: 'Vertex API', description: 'Connect Vertex-compatible providers with API key.', gradient: 'from-sky-500/10 to-blue-500/10' },
@@ -96,7 +119,7 @@ export function ApiKeys() {
     setProviderError(null)
     try {
       const entries = await Promise.all(PROVIDER_TABS.map(async (provider) => [provider.id, await fetchProviderApiKeys(provider.id)] as const))
-      const nextState = { gemini: [], claude: [], codex: [], openai: [], vertex: [] } as Record<ProviderKeyChannel, ProviderApiKeyEntry[]>
+      const nextState = { gemini: [], claude: [], codex: [], openai: [], vertex: [], anthropic: [] } as Record<ProviderKeyChannel, ProviderApiKeyEntry[]>
       for (const [providerId, list] of entries) nextState[providerId] = list
       setProviderKeysByChannel(nextState)
     } catch (err: any) {
@@ -113,6 +136,45 @@ export function ApiKeys() {
   useEffect(() => {
     loadAllProviderKeys()
   }, [])
+
+  const loadAnthropicConfig = async () => {
+    try {
+      const response = await fetch(`${managementBaseUrl}/openai-compatibility`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Management-Key': MANAGEMENT_KEY,
+        },
+      })
+      if (!response.ok) return
+
+      const data = await response.json()
+      const entries = Array.isArray(data?.['openai-compatibility']) ? data['openai-compatibility'] : []
+      const entry = entries.find((item: any) => String(item?.name || '').trim().toLowerCase() === 'anthropic')
+      if (!entry) return
+
+      const baseUrl = String(entry?.['base-url'] || '').trim()
+      const rawHeaders = entry?.headers && typeof entry.headers === 'object' ? entry.headers : {}
+      const token = String(rawHeaders?.['X-Api-Key'] || rawHeaders?.['x-api-key'] || '').trim()
+      const models = Array.isArray(entry?.models)
+        ? entry.models
+            .map((model: any) => String(model?.name || '').trim())
+            .filter(Boolean)
+        : []
+
+      if (baseUrl) setAnthropicBaseUrl(baseUrl)
+      setAnthropicAuthToken(token)
+      if (models.length > 0) setAnthropicModels(models)
+      setAnthropicConfigChanged(false)
+    } catch {
+      // Keep defaults when cannot load existing config
+    }
+  }
+
+  useEffect(() => {
+    if (activeProvider === 'anthropic') {
+      loadAnthropicConfig()
+    }
+  }, [activeProvider])
 
   const providerKeys = providerKeysByChannel[activeProvider] || []
 
@@ -195,6 +257,75 @@ export function ApiKeys() {
       setProviderError(err?.message || `Failed to delete ${activeProvider} API key`)
     } finally {
       setDeletingProviderIndex(null)
+    }
+  }
+
+  const handleSaveAnthropicConfig = async () => {
+    if (!anthropicConfigChanged || activeProvider !== 'anthropic') return
+    setProviderWorking(true)
+    setProviderError(null)
+    try {
+      const normalizedBaseUrl = normalizeOpenAICompatBaseUrl(anthropicBaseUrl)
+      const response = await fetch(`${managementBaseUrl}/openai-compatibility`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Management-Key': MANAGEMENT_KEY,
+        },
+      })
+      if (!response.ok) throw new Error('Failed to fetch current configuration')
+
+      const data = await response.json()
+      const anthropicData = Array.isArray(data['openai-compatibility']) ? [...data['openai-compatibility']] : []
+
+      const targetIdx = anthropicData.findIndex((e: any) => String(e.name || '').toLowerCase() === 'anthropic')
+
+      if (targetIdx >= 0) {
+        const current = anthropicData[targetIdx]
+        const updatedHeaders: Record<string, string> = { ...(current.headers || {}) }
+        if (anthropicAuthToken.trim()) {
+          updatedHeaders['X-Api-Key'] = anthropicAuthToken
+        } else {
+          delete updatedHeaders['X-Api-Key']
+        }
+        
+        anthropicData[targetIdx] = {
+          ...current,
+          'base-url': normalizedBaseUrl,
+          headers: updatedHeaders,
+          models: anthropicModels.map(name => ({ name, alias: '' }))
+        }
+      } else {
+        // Create new anthropic entry if doesn't exist
+        const newEntry: any = {
+          name: 'anthropic',
+          'base-url': normalizedBaseUrl,
+          'api-key-entries': [],
+          models: anthropicModels.map(name => ({ name, alias: '' }))
+        }
+        if (anthropicAuthToken.trim()) {
+          newEntry.headers = { 'X-Api-Key': anthropicAuthToken }
+        }
+        anthropicData.push(newEntry)
+      }
+      
+      const putRes = await fetch(`${managementBaseUrl}/openai-compatibility`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Management-Key': MANAGEMENT_KEY,
+        },
+        body: JSON.stringify(anthropicData)
+      })
+      
+      if (!putRes.ok) throw new Error('Failed to save configuration')
+
+      setAnthropicBaseUrl(normalizedBaseUrl)
+      setAnthropicConfigChanged(false)
+      await loadProviderKeys('anthropic')
+    } catch (err: any) {
+      setProviderError(err?.message || 'Failed to save Anthropic configuration')
+    } finally {
+      setProviderWorking(false)
     }
   }
 
@@ -469,6 +600,123 @@ export function ApiKeys() {
             </tbody>
           </table>
         </div>
+
+        {activeProvider === 'anthropic' && (
+          <div className="rounded-xl border border-orange-600/30 bg-orange-500/5 p-5 space-y-4 mt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-orange-300 flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                Anthropic OpenAI-Compatible Configuration
+              </h3>
+              <p className="text-xs text-gray-400 mb-3">Customize base URL, authentication headers, and available models.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5">Base URL</label>
+                <input
+                  type="text"
+                  value={anthropicBaseUrl}
+                  onChange={(e) => {
+                    setAnthropicBaseUrl(e.target.value)
+                    setAnthropicConfigChanged(true)
+                  }}
+                  placeholder="https://api.anthropic.com/v1"
+                  className="w-full rounded-lg border border-orange-600/20 bg-gray-900/50 px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Use base URL ending with /v1 (example: https://your-domain/v1). If omitted, Save will auto-append /v1.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5">Auth Token (optional header)</label>
+                <input
+                  type="password"
+                  value={anthropicAuthToken}
+                  onChange={(e) => {
+                    setAnthropicAuthToken(e.target.value)
+                    setAnthropicConfigChanged(true)
+                  }}
+                  placeholder="ANTHROPIC_AUTH_TOKEN or custom header value"
+                  className="w-full rounded-lg border border-orange-600/20 bg-gray-900/50 px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Custom authentication token (sent as X-Api-Key or Authorization header)</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-2">Available Models</label>
+                <div className="space-y-2">
+                  {anthropicModels.map((model, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={model}
+                        readOnly
+                        className="flex-1 rounded-lg border border-orange-600/20 bg-gray-900/50 px-3 py-2 text-xs text-gray-300"
+                      />
+                      <button
+                        onClick={() => {
+                          setAnthropicModels(anthropicModels.filter((_, i) => i !== idx))
+                          setAnthropicConfigChanged(true)
+                        }}
+                        className="p-1.5 text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
+                        title="Remove Model"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editingAnthropicModel}
+                      onChange={(e) => setEditingAnthropicModel(e.target.value)}
+                      placeholder="e.g., claude-opus-4-6"
+                      className="flex-1 rounded-lg border border-orange-600/20 bg-gray-900/50 px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      onClick={() => {
+                        if (editingAnthropicModel.trim() && !anthropicModels.includes(editingAnthropicModel.trim())) {
+                          setAnthropicModels([...anthropicModels, editingAnthropicModel.trim()])
+                          setEditingAnthropicModel('')
+                          setAnthropicConfigChanged(true)
+                        }
+                      }}
+                      disabled={!editingAnthropicModel.trim()}
+                      className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors text-xs font-medium disabled:opacity-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Configure which Anthropic models are available to clients</p>
+              </div>
+            </div>
+
+            {anthropicConfigChanged && (
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSaveAnthropicConfig}
+                  disabled={providerWorking}
+                  className="flex-1 px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-60"
+                >
+                  {providerWorking ? <Loader2 className="w-4 h-4 animate-spin inline mr-2" /> : null}
+                  Save Configuration
+                </button>
+                <button
+                  onClick={() => {
+                    setAnthropicBaseUrl('https://api.anthropic.com/v1')
+                    setAnthropicAuthToken('')
+                    setAnthropicModels(['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-6'])
+                    setAnthropicConfigChanged(false)
+                  }}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         </div>
       </div>
     </div>

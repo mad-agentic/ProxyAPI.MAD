@@ -339,6 +339,15 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 // setupRoutes configures the API routes for the server.
 // It defines the endpoints and associates them with their respective handlers.
 func (s *Server) setupRoutes() {
+	// Redirect /admin and /admin/* to root / to match React Router routes
+	s.engine.GET("/admin", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/")
+	})
+	s.engine.GET("/admin/*path", func(c *gin.Context) {
+		path := "/" + c.Param("path")
+		c.Redirect(http.StatusMovedPermanently, path)
+	})
+
 	s.engine.GET("/management.html", s.serveManagementControlPanel)
 	openaiHandlers := openai.NewOpenAIAPIHandler(s.handlers)
 	geminiHandlers := gemini.NewGeminiAPIHandler(s.handlers)
