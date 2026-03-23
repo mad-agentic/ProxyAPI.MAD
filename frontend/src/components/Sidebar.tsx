@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { LayoutDashboard, KeyRound, Activity, Settings, Blocks, MessageSquare } from "lucide-react"
+import { LayoutDashboard, KeyRound, Activity, Settings, Blocks, MessageSquare, BookOpen } from "lucide-react"
 import { cn } from "../lib/utils"
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { name: "Chat", href: "/chat", icon: MessageSquare },
   { name: "Logs", href: "/logs", icon: Activity },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Docs", href: "/docs", icon: BookOpen },
 ]
 
 export function Sidebar() {

@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ProxyAPI.MAD — GitHub Pages Docs</title>
+    <meta
+      name="description"
+      content="ProxyAPI.MAD documentation: setup, quick start, provider authentication, API usage, and troubleshooting."
+    />
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --card: #111826;
+        --card-2: #0f1724;
+        --text: #e8eefc;
+        --muted: #9fb0d2;
+        --line: #22314f;
+        --brand: #34d399;
+        --brand-2: #10b981;
+        --warn: #f59e0b;
+        --danger: #f87171;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(circle at top right, #12213f 0%, var(--bg) 42%);
+        color: var(--text);
+        font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        scroll-behavior: smooth;
+      }
+
+      a {
+        color: var(--brand);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .container {
+        width: min(1120px, 92vw);
+        margin: 0 auto;
+        padding: 28px 0 80px;
+      }
+
+      .hero {
+        background: linear-gradient(160deg, #13203b, #0e1627);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 12px;
+        letter-spacing: 0.4px;
+        border: 1px solid #2e4a7a;
+        color: #b9cbef;
+        border-radius: 999px;
+        padding: 4px 10px;
+        margin-bottom: 10px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 40px);
+        line-height: 1.2;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        margin: 10px 0 0;
+        max-width: 850px;
+      }
+
+      .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        background: #0d1628;
+        color: #d8e4ff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+
+      .section {
+        margin-top: 26px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 20px;
+      }
+
+      [id] {
+        scroll-margin-top: 88px;
+      }
+
+      h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      h3 {
+        margin: 18px 0 8px;
+        font-size: 18px;
+      }
+
+      p,
+      li {
+        color: #d8e4ff;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .col-6 {
+        grid-column: span 6;
+      }
+
+      .col-12 {
+        grid-column: span 12;
+      }
+
+      @media (max-width: 920px) {
+        .col-6 {
+          grid-column: span 12;
+        }
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--card-2);
+        padding: 14px;
+      }
+
+      pre {
+        margin: 0;
+        background: #09101d;
+        border: 1px solid #1a2943;
+        color: #d7e4ff;
+        border-radius: 10px;
+        padding: 12px;
+        overflow: auto;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+
+      th,
+      td {
+        border: 1px solid #273a5e;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #0f1a2d;
+      }
+
+      .note {
+        border-left: 4px solid var(--warn);
+        padding: 8px 12px;
+        margin-top: 10px;
+        background: rgba(245, 158, 11, 0.08);
+        border-radius: 6px;
+        color: #ffe3ae;
+      }
+
+      .danger {
+        border-left: 4px solid var(--danger);
+        background: rgba(248, 113, 113, 0.08);
+        color: #ffd1d1;
+      }
+
+      .footer {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .lang {
+        display: inline-flex;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .lang a {
+        color: #bfe9d8;
+      }
+
+      .sticky-nav {
+        position: sticky;
+        top: 10px;
+        z-index: 50;
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(9, 16, 29, 0.88);
+        backdrop-filter: blur(6px);
+        padding: 10px;
+      }
+
+      .sticky-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .lang-btn {
+        border: 1px solid #2f4870;
+        background: #0f1b31;
+        color: #cfe1ff;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .lang-btn.active {
+        border-color: #3f7d69;
+        background: rgba(52, 211, 153, 0.16);
+        color: #ccffe8;
+      }
+
+      .anchor-nav {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .anchor-nav a {
+        border: 1px solid #2a3f66;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 13px;
+        color: #c9dcff;
+        background: #0d172a;
+      }
+
+      .anchor-nav a.active {
+        border-color: #4f8f79;
+        color: #d6ffec;
+        background: rgba(52, 211, 153, 0.15);
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="hero">
+        <div class="badge">GitHub Pages</div>
+        <h1>ProxyAPI.MAD</h1>
+        <p class="subtitle">
+          Admin dashboard + API proxy backend for CLI AI tools, compatible with OpenAI/Gemini/Claude/Codex workflows.
+          This page summarizes setup and usage for running the full stack quickly.
+        </p>
+
+        <div class="lang">
+          <strong>Language:</strong>
+          <a href="#en-overview">English</a>
+          <span>|</span>
+          <a href="#vi-overview">Tiếng Việt</a>
+        </div>
+
+        <div class="quick-links">
+          <a class="chip" href="https://github.com/mad-agentic/ProxyAPI.MAD" target="_blank" rel="noopener noreferrer">GitHub Source</a>
+          <a class="chip" href="../README.md">README (EN)</a>
+          <a class="chip" href="../README_VN.md">README (VI)</a>
+          <a class="chip" href="index.md">Full Docs (EN)</a>
+          <a class="chip" href="index_VN.md">Full Docs (VI)</a>
+          <a class="chip" href="../frontend/README.md">Frontend Guide</a>
+          <a class="chip" href="../proxyapi_core/README.md">Backend Guide</a>
+        </div>
+      </header>
+
+      <nav class="sticky-nav" aria-label="In-page navigation">
+        <div class="sticky-row">
+          <strong>Navigate:</strong>
+          <a class="lang-btn" data-lang-btn="en" href="#en-overview">EN</a>
+          <a class="lang-btn" data-lang-btn="vi" href="#vi-overview">VI</a>
+        </div>
+        <div class="anchor-nav" data-anchor-nav="en">
+          <a href="#en-overview">Overview</a>
+          <a href="#en-quickstart">Quick Start</a>
+          <a href="#en-setup">Setup</a>
+          <a href="#en-proxy">SDK/CLI</a>
+          <a href="#en-provider">Providers</a>
+          <a href="#en-management">Management API</a>
+          <a href="#en-screenshots">Screenshots</a>
+        </div>
+        <div class="anchor-nav hidden" data-anchor-nav="vi">
+          <a href="#vi-overview">Tổng quan</a>
+          <a href="#vi-quickstart">Chạy nhanh</a>
+          <a href="#vi-setup">Cài đặt</a>
+          <a href="#vi-proxy">SDK/CLI</a>
+          <a href="#vi-provider">Providers</a>
+          <a href="#vi-management">Management API</a>
+          <a href="#vi-screenshots">Giao diện</a>
+        </div>
+      </nav>
+
+      <section id="en-root" class="section" data-lang="en">
+        <h2>English Summary</h2>
+        <div class="grid">
+          <div class="col-6 panel" id="en-overview">
+            <h3>Architecture</h3>
+            <ul>
+              <li><code>frontend/</code>: React + Vite + TypeScript dashboard.</li>
+              <li><code>proxyapi_core/</code>: Go proxy + management API backend.</li>
+              <li>Default endpoints: backend <code>http://localhost:8317</code>, frontend <code>http://localhost:5173</code>.</li>
+            </ul>
+          </div>
+          <div class="col-6 panel">
+            <h3>Requirements</h3>
+            <ul>
+              <li>Go <code>>= 1.26.0</code></li>
+              <li>Node.js <code>>= 18</code> (20+ recommended)</li>
+              <li>npm <code>>= 9</code></li>
+              <li>Docker + Docker Compose (optional)</li>
+            </ul>
+          </div>
+
+          <div class="col-12 panel" id="en-quickstart">
+            <h3>Quick Start</h3>
+            <pre><code># Windows quick run
+run-dev.bat
+
+# backend only
+run-real.bat</code></pre>
+          </div>
+
+          <div class="col-12 panel" id="en-setup">
+            <h3>Manual Setup</h3>
+            <pre><code>cd proxyapi_core
+cp config.example.yaml config.yaml
+# set api-keys and remote-management.secret-key
+go run ./cmd/server
+
+cd ../frontend
+npm install
+npm run dev</code></pre>
+            <p class="note">
+              Management endpoints require <code>remote-management.secret-key</code>. If empty, <code>/v0/management/*</code> returns 404.
+            </p>
+          </div>
+
+          <div class="col-12 panel" id="en-proxy">
+            <h3>Use the Proxy in SDK/CLI</h3>
+            <pre><code>curl http://localhost:8317/v1/models \
+  -H "Authorization: Bearer my-personal-key"</code></pre>
+            <p class="muted">Set your tool base URL to <code>http://localhost:8317/v1</code>, and use a key from <code>api-keys</code>.</p>
+          </div>
+
+          <div class="col-12 panel" id="en-provider">
+            <h3>Provider Authentication Commands</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Command / Config</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Claude</td><td><code>go run ./cmd/server -claude-login</code></td></tr>
+                <tr><td>Gemini API key</td><td>Set <code>providers.gemini[].api-key</code> in <code>config.yaml</code></td></tr>
+                <tr><td>Gemini CLI</td><td><code>go run ./cmd/server -login</code></td></tr>
+                <tr><td>Vertex AI</td><td><code>go run ./cmd/server -vertex-import /path/to/service-account.json</code></td></tr>
+                <tr><td>OpenAI</td><td><code>go run ./cmd/server -openai-device-login</code></td></tr>
+                <tr><td>Codex</td><td><code>go run ./cmd/server -codex-device-login</code></td></tr>
+                <tr><td>Kimi</td><td><code>go run ./cmd/server -kimi-login</code></td></tr>
+                <tr><td>Qwen</td><td><code>go run ./cmd/server -qwen-login</code></td></tr>
+                <tr><td>iFlow</td><td><code>go run ./cmd/server -iflow-login</code> or <code>-iflow-cookie</code></td></tr>
+                <tr><td>Antigravity</td><td><code>go run ./cmd/server -antigravity-login</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="col-12 panel" id="en-management">
+            <h3>Management API Quick Checks</h3>
+            <pre><code>curl http://localhost:8317/v0/management/runtime-info -H "Authorization: Bearer my-management-secret"
+curl http://localhost:8317/v0/management/config -H "Authorization: Bearer my-management-secret"
+curl http://localhost:8317/v0/management/usage -H "Authorization: Bearer my-management-secret"</code></pre>
+          </div>
+
+          <div class="col-12 panel" id="en-screenshots">
+            <h3>Dashboard & Screenshots</h3>
+            <p class="muted">A visual overview of the ProxyAPI.MAD frontend interface.</p>
+            <div class="grid" style="margin-top: 14px;">
+              <div class="col-6">
+                <a href="assets/01-dashboard.png" target="_blank"><img src="assets/01-dashboard.png" alt="Dashboard" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Dashboard (Analytics & Usage)</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/02-apikeys.png" target="_blank"><img src="assets/02-apikeys.png" alt="API Keys" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">API Keys Management</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/03-providers.png" target="_blank"><img src="assets/03-providers.png" alt="Providers" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Provider Settings</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/04-chat.png" target="_blank"><img src="assets/04-chat.png" alt="Chat" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Chat Interface</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/05-logs.png" target="_blank"><img src="assets/05-logs.png" alt="Logs" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Event Logs</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/06-settings.png" target="_blank"><img src="assets/06-settings.png" alt="Settings" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Global Settings</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="vi-root" class="section" data-lang="vi">
+        <h2>Tóm tắt Tiếng Việt</h2>
+        <div class="grid">
+          <div class="col-6 panel" id="vi-overview">
+            <h3>Kiến trúc</h3>
+            <ul>
+              <li><code>frontend/</code>: dashboard React + Vite + TypeScript.</li>
+              <li><code>proxyapi_core/</code>: backend Go cho proxy API + management API.</li>
+              <li>Mặc định: backend <code>http://localhost:8317</code>, frontend <code>http://localhost:5173</code>.</li>
+            </ul>
+          </div>
+
+          <div class="col-6 panel">
+            <h3>Yêu cầu môi trường</h3>
+            <ul>
+              <li>Go <code>>= 1.26.0</code></li>
+              <li>Node.js <code>>= 18</code> (khuyến nghị 20+)</li>
+              <li>npm <code>>= 9</code></li>
+              <li>Docker + Docker Compose (tuỳ chọn)</li>
+            </ul>
+          </div>
+
+          <div class="col-12 panel" id="vi-quickstart">
+            <h3>Chạy nhanh</h3>
+            <pre><code># Windows
+run-dev.bat
+
+# chỉ backend
+run-real.bat</code></pre>
+          </div>
+
+          <div class="col-12 panel" id="vi-setup">
+            <h3>Cài đặt thủ công</h3>
+            <pre><code>cd proxyapi_core
+cp config.example.yaml config.yaml
+# cấu hình api-keys và remote-management.secret-key
+go run ./cmd/server
+
+cd ../frontend
+npm install
+npm run dev</code></pre>
+            <p class="note">
+              Endpoint quản trị cần <code>remote-management.secret-key</code>; nếu để trống, <code>/v0/management/*</code> sẽ trả 404.
+            </p>
+          </div>
+
+          <div class="col-12 panel" id="vi-proxy">
+            <h3>Kết nối SDK/CLI qua proxy</h3>
+            <pre><code>curl http://localhost:8317/v1/models \
+  -H "Authorization: Bearer my-personal-key"</code></pre>
+            <p class="muted">Đặt base URL tool về <code>http://localhost:8317/v1</code> và dùng key trong <code>api-keys</code>.</p>
+          </div>
+
+          <div class="col-12 panel" id="vi-provider">
+            <h3>Lệnh xác thực provider</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Lệnh / Cấu hình</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Claude</td><td><code>go run ./cmd/server -claude-login</code></td></tr>
+                <tr><td>Gemini API key</td><td>Cấu hình <code>providers.gemini[].api-key</code> trong <code>config.yaml</code></td></tr>
+                <tr><td>Gemini CLI</td><td><code>go run ./cmd/server -login</code></td></tr>
+                <tr><td>Vertex AI</td><td><code>go run ./cmd/server -vertex-import /path/to/service-account.json</code></td></tr>
+                <tr><td>OpenAI</td><td><code>go run ./cmd/server -openai-device-login</code></td></tr>
+                <tr><td>Codex</td><td><code>go run ./cmd/server -codex-device-login</code></td></tr>
+                <tr><td>Kimi</td><td><code>go run ./cmd/server -kimi-login</code></td></tr>
+                <tr><td>Qwen</td><td><code>go run ./cmd/server -qwen-login</code></td></tr>
+                <tr><td>iFlow</td><td><code>go run ./cmd/server -iflow-login</code> hoặc <code>-iflow-cookie</code></td></tr>
+                <tr><td>Antigravity</td><td><code>go run ./cmd/server -antigravity-login</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="col-12 panel" id="vi-management">
+            <h3>Kiểm tra nhanh Management API</h3>
+            <pre><code>curl http://localhost:8317/v0/management/runtime-info -H "Authorization: Bearer my-management-secret"
+curl http://localhost:8317/v0/management/config -H "Authorization: Bearer my-management-secret"
+curl http://localhost:8317/v0/management/usage -H "Authorization: Bearer my-management-secret"</code></pre>
+          </div>
+
+          <div class="col-12 panel" id="vi-screenshots">
+            <h3>Giao diện ứng dụng (Screenshots)</h3>
+            <p class="muted">Một số hình ảnh trực quan về giao diện quản trị ProxyAPI.MAD.</p>
+            <div class="grid" style="margin-top: 14px;">
+              <div class="col-6">
+                <a href="assets/01-dashboard.png" target="_blank"><img src="assets/01-dashboard.png" alt="Dashboard" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Trang tổng quan (Thống kê & Mức sử dụng)</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/02-apikeys.png" target="_blank"><img src="assets/02-apikeys.png" alt="API Keys" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Quản lý API Keys</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/03-providers.png" target="_blank"><img src="assets/03-providers.png" alt="Providers" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Cấu hình nhà cung cấp (Providers)</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/04-chat.png" target="_blank"><img src="assets/04-chat.png" alt="Chat" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Giao diện Chat thử nghiệm</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/05-logs.png" target="_blank"><img src="assets/05-logs.png" alt="Logs" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Lịch sử sự kiện (Logs)</p>
+              </div>
+              <div class="col-6">
+                <a href="assets/06-settings.png" target="_blank"><img src="assets/06-settings.png" alt="Settings" style="width: 100%; border-radius: 8px; border: 1px solid var(--line);" /></a>
+                <p style="text-align: center; font-size: 13px; margin-top: 8px;" class="muted">Cài đặt chung</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 panel">
+            <h3>Troubleshooting nhanh</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Vấn đề</th>
+                  <th>Cách xử lý</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>401 Unauthorized</code></td><td>Kiểm tra key trong <code>api-keys</code> của <code>config.yaml</code></td></tr>
+                <tr><td><code>404</code> endpoint management</td><td>Đặt <code>remote-management.secret-key</code></td></tr>
+                <tr><td>Dashboard usage trống</td><td>Bật <code>usage-statistics-enabled: true</code></td></tr>
+                <tr><td>Log viewer trống</td><td>Bật <code>logging-to-file: true</code></td></tr>
+                <tr><td>Port bị chiếm</td><td>Đổi <code>port:</code> trong <code>config.yaml</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="col-12 panel">
+            <h3>Ghi chú bảo mật</h3>
+            <ul>
+              <li>Không commit file secrets thật trong <code>proxyapi_core/config.yaml</code>.</li>
+              <li>Không commit dữ liệu runtime: <code>logs/</code>, <code>auths/</code>, cache/temp.</li>
+              <li>Nên xoay vòng API key và secret định kỳ.</li>
+            </ul>
+            <p class="note danger">Trang này là bản tóm tắt. Vui lòng xem full docs để có ví dụ đầy đủ về alias model, streaming, thinking mode và CLI integrations.</p>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer">
+        Source: <a href="https://github.com/mad-agentic/ProxyAPI.MAD" target="_blank" rel="noopener noreferrer">github.com/mad-agentic/ProxyAPI.MAD</a>
+        · Reference project: <a href="https://github.com/router-for-me/CLIProxyAPI" target="_blank" rel="noopener noreferrer">CLIProxyAPI</a>
+        · License: MIT
+      </p>
+    </div>
+
+    <script>
+      (function () {
+        const langSections = document.querySelectorAll('[data-lang]');
+        const langButtons = document.querySelectorAll('[data-lang-btn]');
+        const navGroups = document.querySelectorAll('[data-anchor-nav]');
+
+        function resolveLanguageFromHash() {
+          const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+          if (hash.startsWith('vi')) return 'vi';
+          return 'en';
+        }
+
+        function setLanguage(language) {
+          langSections.forEach((section) => {
+            const isActive = section.getAttribute('data-lang') === language;
+            section.classList.toggle('hidden', !isActive);
+          });
+
+          langButtons.forEach((button) => {
+            const isActive = button.getAttribute('data-lang-btn') === language;
+            button.classList.toggle('active', isActive);
+          });
+
+          navGroups.forEach((group) => {
+            const isActive = group.getAttribute('data-anchor-nav') === language;
+            group.classList.toggle('hidden', !isActive);
+          });
+
+          updateActiveAnchor();
+        }
+
+        function updateActiveAnchor() {
+          const currentHash = window.location.hash || '';
+          const visibleNav = document.querySelector('[data-anchor-nav]:not(.hidden)');
+          if (!visibleNav) return;
+
+          visibleNav.querySelectorAll('a').forEach((link) => {
+            const href = link.getAttribute('href') || '';
+            link.classList.toggle('active', href === currentHash);
+          });
+        }
+
+        function ensureDefaultHash(language) {
+          if (window.location.hash) return;
+          const fallback = language === 'vi' ? '#vi-overview' : '#en-overview';
+          history.replaceState(null, '', fallback);
+        }
+
+        function syncFromHash() {
+          const language = resolveLanguageFromHash();
+          ensureDefaultHash(language);
+          setLanguage(language);
+        }
+
+        window.addEventListener('hashchange', syncFromHash);
+        syncFromHash();
+      })();
+    </script>
+  </body>
+</html>

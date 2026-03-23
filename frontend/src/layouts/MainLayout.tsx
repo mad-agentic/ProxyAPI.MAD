@@ -8,6 +8,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/chat': 'Chat Playground',
   '/logs': 'Request Logs',
   '/settings': 'Settings',
+  '/docs': 'Documentation',
 }
 
 export function MainLayout() {

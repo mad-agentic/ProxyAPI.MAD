@@ -6,6 +6,7 @@ import { Providers } from "./pages/Providers"
 import { Chat } from "./pages/Chat"
 import { Logs } from "./pages/Logs"
 import { Settings } from "./pages/Settings"
+import { Docs } from "./pages/Docs"
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/chat" element={<Chat />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/docs" element={<Docs />} />
         </Route>
       </Routes>
     </BrowserRouter>
