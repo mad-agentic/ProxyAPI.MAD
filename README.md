@@ -2,75 +2,71 @@
 
 English | [Tiếng Việt](README_VN.md)
 
-Admin dashboard + proxy backend for CLI AI tools (OpenAI/Gemini/Claude/Codex-compatible), optimized for local usage and self-managed multi-key/provider setups.
+Admin dashboard + API proxy backend for CLI AI tools (OpenAI/Gemini/Claude/Codex compatible), optimized for local and self-managed multi-provider usage.
 
-## 1) Overview
+## Overview
 
-This repository has two main parts:
+This workspace is organized into 2 runtime parts:
 
-- `proxyapi_core/`: Backend Go (API proxy + Management API).
-- `frontend/`: Admin dashboard (React + Vite + TypeScript).
+- `frontend/`: React + Vite + TypeScript management UI
+- `proxyapi_core/`: Go backend (proxy API + management API)
 
-Goal: clone, configure quickly, run locally, and manage providers/keys/logs/usage through the UI.
+Use this README for full-system setup. Service-level details are in:
 
-## 2) Requirements
+- Frontend guide: [`frontend/README.md`](frontend/README.md)
+- Backend guide: [`proxyapi_core/README.md`](proxyapi_core/README.md)
+
+## Requirements
 
 - Windows/macOS/Linux
-- Go `>= 1.26` (based on `proxyapi_core/go.mod`)
+- Go `>= 1.26.0` (from `proxyapi_core/go.mod`)
 - Node.js `>= 18` (Node 20+ recommended)
-- npm (or pnpm/yarn if you prefer equivalent commands)
+- npm `>= 9`
+- Docker + Docker Compose (optional, for containerized run)
 
-## 3) Quick Start (Windows)
+## Quick Start (Windows)
 
-From the repository root, choose one mode:
+Run from repository root:
 
 ```bat
 run-dev.bat
 ```
 
-or
+This starts:
+
+- Backend: `http://localhost:8317`
+- Frontend dev server: `http://localhost:5173`
+
+Backend-only mode:
 
 ```bat
 run-real.bat
 ```
 
-`run-dev.bat` will:
+## Manual Setup (All OS)
 
-1. Check whether Go/Node are installed.
-2. Install frontend dependencies if `node_modules` is missing.
-3. Start backend at `http://localhost:8317`.
-4. Start frontend dev server at `http://localhost:5173`.
-
-`run-real.bat` will:
-
-1. Check whether Go is installed.
-2. Start backend only at `http://localhost:8317`.
-
-## 4) Manual Setup (All OS)
-
-### Step 1: Backend config
+### 1) Backend config
 
 ```bash
 cd proxyapi_core
 cp config.example.yaml config.yaml
 ```
 
-Open `proxyapi_core/config.yaml` and set at least:
+Update at minimum:
 
-- `api-keys`: add keys for client requests via proxy.
-- `remote-management.secret-key`: add a management key for `/v0/management/*` APIs.
-- `usage-statistics-enabled: true` to enable usage statistics.
+- `api-keys`: keys for client authentication to proxy APIs
+- `remote-management.secret-key`: required for `/v0/management/*`
+- `usage-statistics-enabled: true`: enable usage aggregation for dashboard charts
+- `logging-to-file: true` (recommended when you need dashboard log viewer)
 
-> Note: if `remote-management.secret-key` is empty, Management API is disabled (404).
-
-### Step 2: Run backend
+### 2) Run backend
 
 ```bash
 cd proxyapi_core
 go run ./cmd/server
 ```
 
-### Step 3: Run frontend
+### 3) Run frontend
 
 ```bash
 cd frontend
@@ -78,67 +74,79 @@ npm install
 npm run dev
 ```
 
-Open in browser:
+Access:
 
-- Backend/Management: `http://localhost:8317`
-- Frontend dev: `http://localhost:5173`
+- Backend API + Management API: `http://localhost:8317`
+- Frontend UI (dev): `http://localhost:5173`
 
-## 5) Build Production Frontend
+## Docker Run (Frontend + Backend)
+
+```bash
+cp proxyapi_core/config.example.yaml proxyapi_core/config.yaml
+# edit config.yaml first
+docker compose up -d --build
+```
+
+Access:
+
+- Frontend: `http://localhost:5173`
+- Backend API + Management API: `http://localhost:8317`
+
+Useful commands:
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+## Build
+
+Frontend production build:
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Build output is in `frontend/dist/`.
+Backend tests (optional):
 
-## 6) Logs, Cache, Usage Persistence
+```bash
+cd proxyapi_core
+go test ./...
+```
 
-- Backend logs are stored in the `logs/` directory (resolved from backend config).
-- Usage stats are automatically persisted to `logs/usage-stats.json` (when `usage-statistics-enabled: true`).
-- If dashboard data is missing after restart, check:
-	1. `usage-statistics-enabled` is enabled.
-	2. log directory write permissions allow creating/updating `usage-stats.json`.
+## Runtime Notes
 
-## 7) Project Structure
+- If `remote-management.secret-key` is empty, management endpoints are disabled (404).
+- If `usage-statistics-enabled` is false, dashboard usage widgets can appear empty.
+- Usage persistence file is `logs/usage-stats.json` (resolved by backend runtime path logic).
+- Log viewer needs file logging enabled (`logging-to-file: true`).
+
+## Repository Structure
 
 ```text
 ProxyAPI.MAD/
-├─ frontend/          # Dashboard UI
-├─ proxyapi_core/     # Go backend proxy + management
-├─ run-dev.bat        # Quick dev runner (Windows)
-├─ run-real.bat       # Backend-only runner (Windows)
-└─ README.md
+├─ frontend/                  # React dashboard
+├─ proxyapi_core/             # Go backend
+├─ docker-compose.yml         # Full stack compose
+├─ run-dev.bat                # Windows quick dev run (frontend + backend)
+├─ run-real.bat               # Windows backend-only run
+├─ README.md                  # Overall guide (EN)
+└─ README_VN.md               # Overall guide (VI)
 ```
 
-## 8) Common Commands
+## Security Checklist
 
-```bash
-# run backend
-cd proxyapi_core && go run ./cmd/server
+- Do not commit real secrets in `proxyapi_core/config.yaml`.
+- Keep runtime folders (`logs/`, `auths/`, temp/cache data) out of version control.
+- Rotate `remote-management.secret-key` and API keys regularly.
 
-# run backend only (Windows helper)
-run-real.bat
+## Reference
 
-# run frontend dev
-cd frontend && npm run dev
-
-# build frontend
-cd frontend && npm run build
-```
-
-## 9) Security Notes Before Publishing
-
-- Do not commit a real `proxyapi_core/config.yaml` that contains secrets.
-- Do not commit runtime directories: `logs/`, `auths/`, `temp/`, `conv/`.
-- Commit only `config.example.yaml` and documentation.
-
-## 10) Reference
-
-This project is adapted and referenced from:
+This project is adapted from:
 
 - https://github.com/router-for-me/CLIProxyAPI
 
-## 11) License
+## License
 
-This project is licensed under MIT. See `LICENSE`.
+MIT License. See [LICENSE](LICENSE).

@@ -3,6 +3,7 @@
  */
 
 const BASE_URL = "/v0/management"
+const MANAGEMENT_KEY = "proxyapi-management-secret-key-admin"
 
 const RUNTIME_API_BASE =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE) ||
@@ -14,12 +15,21 @@ function withApiBase(path: string): string {
   return `${String(RUNTIME_API_BASE || '').replace(/\/$/, '')}${path}`
 }
 
+function getManagementHeaders(): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    'X-Management-Key': MANAGEMENT_KEY,
+  }
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // API Keys & Config
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export async function fetchApiKeys(): Promise<string[]> {
-  const res = await fetch(withApiBase(BASE_URL + "/api-keys"))
+  const res = await fetch(withApiBase(BASE_URL + "/api-keys"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch API keys")
   const data = await res.json()
   return Array.isArray(data?.["api-keys"]) ? data["api-keys"] : []
@@ -31,7 +41,7 @@ export async function addApiKey(value: string): Promise<void> {
 
   const res = await fetch(withApiBase(BASE_URL + "/api-keys"), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getManagementHeaders(),
     body: JSON.stringify({ old: "__append__", new: key }),
   })
   if (!res.ok) {
@@ -46,7 +56,7 @@ export async function updateApiKey(index: number, value: string): Promise<void> 
 
   const res = await fetch(withApiBase(BASE_URL + "/api-keys"), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getManagementHeaders(),
     body: JSON.stringify({ index, value: key }),
   })
   if (!res.ok) {
@@ -58,6 +68,7 @@ export async function updateApiKey(index: number, value: string): Promise<void> 
 export async function deleteApiKey(index: number): Promise<void> {
   const res = await fetch(withApiBase(BASE_URL + `/api-keys?index=${index}`), {
     method: "DELETE",
+    headers: getManagementHeaders(),
   })
   if (!res.ok) {
     const err = (await res.text()).trim()
@@ -85,7 +96,9 @@ const providerChannelEndpoint: Record<Exclude<ProviderKeyChannel, 'openai'>, str
 }
 
 async function fetchJson(path: string): Promise<any> {
-  const res = await fetch(withApiBase(BASE_URL + path))
+  const res = await fetch(withApiBase(BASE_URL + path), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) {
     const err = (await res.text()).trim()
     throw new Error(err || `Request failed: ${path}`)
@@ -96,7 +109,7 @@ async function fetchJson(path: string): Promise<any> {
 async function putJson(path: string, body: any): Promise<void> {
   const res = await fetch(withApiBase(BASE_URL + path), {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getManagementHeaders(),
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -208,13 +221,17 @@ export async function deleteProviderApiKey(channel: ProviderKeyChannel, index: n
 }
 
 export async function fetchUsage(): Promise<any> {
-  const res = await fetch(withApiBase(BASE_URL + "/usage"))
+  const res = await fetch(withApiBase(BASE_URL + "/usage"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch usage statistics")
   return res.json()
 }
 
 export async function exportUsage(): Promise<any> {
-  const res = await fetch(withApiBase(BASE_URL + "/usage/export"))
+  const res = await fetch(withApiBase(BASE_URL + "/usage/export"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to export usage statistics")
   return res.json()
 }
@@ -222,7 +239,7 @@ export async function exportUsage(): Promise<any> {
 export async function importUsage(payload: any): Promise<any> {
   const res = await fetch(withApiBase(BASE_URL + "/usage/import"), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getManagementHeaders(),
     body: JSON.stringify(payload),
   })
   if (!res.ok) {
@@ -233,7 +250,9 @@ export async function importUsage(payload: any): Promise<any> {
 }
 
 export async function fetchLogs(): Promise<any> {
-  const res = await fetch(withApiBase(BASE_URL + "/logs"))
+  const res = await fetch(withApiBase(BASE_URL + "/logs"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch request logs")
   return res.json()
 }
@@ -241,6 +260,7 @@ export async function fetchLogs(): Promise<any> {
 export async function clearLogs(): Promise<any> {
   const res = await fetch(withApiBase(BASE_URL + "/logs"), {
     method: 'DELETE',
+    headers: getManagementHeaders(),
   })
   if (!res.ok) {
     const err = (await res.text()).trim()
@@ -250,7 +270,9 @@ export async function clearLogs(): Promise<any> {
 }
 
 export async function fetchConfig(): Promise<any> {
-  const res = await fetch(withApiBase(BASE_URL + "/config"))
+  const res = await fetch(withApiBase(BASE_URL + "/config"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch configuration JSON")
   return res.json()
 }
@@ -258,6 +280,7 @@ export async function fetchConfig(): Promise<any> {
 export async function resetDefaultSettings(): Promise<any> {
   const res = await fetch(withApiBase(BASE_URL + "/reset-default"), {
     method: 'POST',
+    headers: getManagementHeaders(),
   })
   if (!res.ok) {
     const err = (await res.text()).trim()
@@ -296,7 +319,9 @@ export interface RuntimeInfo {
 }
 
 export async function fetchRuntimeInfo(): Promise<RuntimeInfo> {
-  const res = await fetch(withApiBase(BASE_URL + "/runtime-info"))
+  const res = await fetch(withApiBase(BASE_URL + "/runtime-info"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch runtime information")
   return res.json()
 }
@@ -322,14 +347,18 @@ export interface AuthFileEntry {
 }
 
 export async function fetchAuthFilesDetailed(): Promise<AuthFileEntry[]> {
-  const res = await fetch(withApiBase(BASE_URL + "/auth-files"))
+  const res = await fetch(withApiBase(BASE_URL + "/auth-files"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch auth files")
   const data = await res.json()
   return Array.isArray(data?.files) ? data.files : []
 }
 
 export async function fetchLoggingToFile(): Promise<boolean> {
-  const res = await fetch(withApiBase(BASE_URL + "/logging-to-file"))
+  const res = await fetch(withApiBase(BASE_URL + "/logging-to-file"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch logging-to-file config")
   const data = await res.json()
   return Boolean(data?.["logging-to-file"])
@@ -338,7 +367,7 @@ export async function fetchLoggingToFile(): Promise<boolean> {
 export async function updateLoggingToFile(enabled: boolean): Promise<void> {
   const res = await fetch(withApiBase(BASE_URL + "/logging-to-file"), {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getManagementHeaders(),
     body: JSON.stringify({ value: enabled }),
   })
   if (!res.ok) {
@@ -372,12 +401,16 @@ export async function fetchAuthStatus(state?: string): Promise<any> {
   const normalizedState = state?.trim()
 
   if (normalizedState) {
-    const res = await fetch(withApiBase(BASE_URL + "/get-auth-status?state=" + encodeURIComponent(normalizedState)))
+    const res = await fetch(withApiBase(BASE_URL + "/get-auth-status?state=" + encodeURIComponent(normalizedState)), {
+      headers: getManagementHeaders(),
+    })
     if (!res.ok) throw new Error("Failed to fetch OAuth state status")
     return res.json()
   }
 
-  const res = await fetch(withApiBase(BASE_URL + "/auth-files"))
+  const res = await fetch(withApiBase(BASE_URL + "/auth-files"), {
+    headers: getManagementHeaders(),
+  })
   if (!res.ok) throw new Error("Failed to fetch auth files")
 
   const data = await res.json()
@@ -421,7 +454,9 @@ export async function fetchOAuthUrl(provider: string): Promise<any> {
   if (!endpoint) throw new Error(`Unknown provider: ${provider}`)
   // ?is_webui=true tells the Go backend to start a local callback forwarder
   try {
-    const res = await fetch(withApiBase(BASE_URL + endpoint + '?is_webui=true'))
+    const res = await fetch(withApiBase(BASE_URL + endpoint + '?is_webui=true'), {
+      headers: getManagementHeaders(),
+    })
     if (!res.ok) {
       const raw = (await res.text()).trim()
       throw new Error(raw || `Failed to get OAuth URL for ${provider} (HTTP ${res.status})`)
@@ -439,7 +474,7 @@ export async function postOAuthCallbackWithUrl(provider: string, callbackUrl: st
   const body = { provider, redirect_url: callbackUrl }
   const res = await fetch(withApiBase(BASE_URL + '/oauth-callback'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getManagementHeaders(),
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -454,7 +489,7 @@ export async function postOAuthCallback(provider: string, code?: string): Promis
   if (code) body.code = code
   const res = await fetch(withApiBase(BASE_URL + "/oauth-callback"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getManagementHeaders(),
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -467,6 +502,7 @@ export async function postOAuthCallback(provider: string, code?: string): Promis
 export async function deleteAuthFile(name: string): Promise<void> {
   const res = await fetch(withApiBase(BASE_URL + `/auth-files?name=${encodeURIComponent(name)}`), {
     method: 'DELETE',
+    headers: getManagementHeaders(),
   })
   if (!res.ok) {
     const err = (await res.text()).trim()

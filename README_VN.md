@@ -2,75 +2,71 @@
 
 [English](README.md) | Tiếng Việt
 
-Giao diện quản trị + backend proxy cho CLI AI tools (OpenAI/Gemini/Claude/Codex-compatible), tối ưu cho chạy local và tự quản lý nhiều key/provider.
+Dashboard quản trị + backend proxy API cho CLI AI tools (OpenAI/Gemini/Claude/Codex compatible), tối ưu cho môi trường tự host và tự quản lý nhiều provider.
 
-## 1) Tổng quan
+## Tổng quan
 
-Repo này gồm 2 phần chính:
+Workspace gồm 2 khối runtime chính:
 
-- `proxyapi_core/`: Backend Go (API proxy + Management API).
-- `frontend/`: Dashboard quản trị (React + Vite + TypeScript).
+- `frontend/`: UI quản trị bằng React + Vite + TypeScript
+- `proxyapi_core/`: Backend Go (proxy API + management API)
 
-Mục tiêu: clone về, cấu hình nhanh, chạy local để quản lý provider/key/log/usage qua UI.
+README này hướng dẫn chạy toàn hệ thống. Tài liệu chi tiết từng phần:
 
-## 2) Yêu cầu môi trường
+- Frontend: [`frontend/README.md`](frontend/README.md)
+- Backend: [`proxyapi_core/README.md`](proxyapi_core/README.md)
+
+## Yêu cầu môi trường
 
 - Windows/macOS/Linux
-- Go `>= 1.26` (theo `proxyapi_core/go.mod`)
+- Go `>= 1.26.0` (theo `proxyapi_core/go.mod`)
 - Node.js `>= 18` (khuyến nghị Node 20+)
-- npm (hoặc pnpm/yarn nếu bạn tự quy đổi lệnh)
+- npm `>= 9`
+- Docker + Docker Compose (tuỳ chọn)
 
-## 3) Cài đặt nhanh (Windows)
+## Chạy nhanh trên Windows
 
-Tại thư mục gốc repo, chọn một trong hai cách chạy:
+Tại thư mục gốc repo:
 
 ```bat
 run-dev.bat
 ```
 
-hoặc
+Script sẽ chạy:
+
+- Backend: `http://localhost:8317`
+- Frontend dev: `http://localhost:5173`
+
+Chỉ chạy backend:
 
 ```bat
 run-real.bat
 ```
 
-`run-dev.bat` sẽ:
+## Cài đặt thủ công (mọi hệ điều hành)
 
-1. Kiểm tra Go/Node đã cài.
-2. Cài dependencies frontend nếu chưa có `node_modules`.
-3. Chạy backend tại `http://localhost:8317`.
-4. Chạy frontend dev tại `http://localhost:5173`.
-
-`run-real.bat` sẽ:
-
-1. Kiểm tra Go đã cài.
-2. Chỉ chạy backend tại `http://localhost:8317`.
-
-## 4) Cài đặt thủ công (mọi hệ điều hành)
-
-### Bước 1: Backend config
+### 1) Cấu hình backend
 
 ```bash
 cd proxyapi_core
 cp config.example.yaml config.yaml
 ```
 
-Mở `proxyapi_core/config.yaml` và chỉnh tối thiểu:
+Cập nhật tối thiểu:
 
-- `api-keys`: thêm key dùng cho client gọi qua proxy.
-- `remote-management.secret-key`: thêm key quản trị để dùng API `/v0/management/*`.
-- `usage-statistics-enabled: true` để bật thống kê usage.
+- `api-keys`: key cho client gọi qua proxy
+- `remote-management.secret-key`: bắt buộc để dùng `/v0/management/*`
+- `usage-statistics-enabled: true`: bật thống kê usage cho dashboard
+- `logging-to-file: true` (khuyến nghị nếu cần xem log trong dashboard)
 
-> Lưu ý: nếu để `remote-management.secret-key` rỗng thì Management API sẽ bị tắt (404).
-
-### Bước 2: Chạy backend
+### 2) Chạy backend
 
 ```bash
 cd proxyapi_core
 go run ./cmd/server
 ```
 
-### Bước 3: Chạy frontend
+### 3) Chạy frontend
 
 ```bash
 cd frontend
@@ -78,67 +74,79 @@ npm install
 npm run dev
 ```
 
-Mở trình duyệt:
+Truy cập:
 
-- Backend/Management: `http://localhost:8317`
-- Frontend dev: `http://localhost:5173`
+- Backend API + Management API: `http://localhost:8317`
+- Frontend UI (dev): `http://localhost:5173`
 
-## 5) Build production frontend
+## Chạy bằng Docker (Frontend + Backend)
+
+```bash
+cp proxyapi_core/config.example.yaml proxyapi_core/config.yaml
+# chỉnh config.yaml trước
+docker compose up -d --build
+```
+
+Truy cập:
+
+- Frontend: `http://localhost:5173`
+- Backend API + Management API: `http://localhost:8317`
+
+Lệnh hữu ích:
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+## Build
+
+Build frontend production:
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Build output ở `frontend/dist/`.
+Chạy test backend (tuỳ chọn):
 
-## 6) Log, cache, usage persistence
+```bash
+cd proxyapi_core
+go test ./...
+```
 
-- Log backend nằm trong thư mục `logs/` (do backend resolve từ config).
-- Usage stats được persist tự động vào file `logs/usage-stats.json` (nếu `usage-statistics-enabled: true`).
-- Nếu bạn restart server mà Dashboard không còn dữ liệu cũ, kiểm tra:
-	1. `usage-statistics-enabled` đã bật chưa.
-	2. Quyền ghi thư mục log có cho phép tạo/cập nhật `usage-stats.json` không.
+## Lưu ý runtime
 
-## 7) Cấu trúc thư mục
+- Nếu `remote-management.secret-key` rỗng thì endpoint management sẽ trả 404.
+- Nếu `usage-statistics-enabled` là `false`, widget usage trên dashboard có thể trống.
+- File persist usage là `logs/usage-stats.json` (được backend resolve theo runtime path).
+- Muốn xem log trong dashboard cần bật `logging-to-file: true`.
+
+## Cấu trúc repo
 
 ```text
 ProxyAPI.MAD/
-├─ frontend/          # Dashboard UI
-├─ proxyapi_core/     # Go backend proxy + management
-├─ run-dev.bat        # Script chạy dev nhanh (Windows)
-├─ run-real.bat       # Script chạy backend-only (Windows)
-└─ README.md
+├─ frontend/                  # React dashboard
+├─ proxyapi_core/             # Go backend
+├─ docker-compose.yml         # Compose chạy full stack
+├─ run-dev.bat                # Chạy nhanh Windows (frontend + backend)
+├─ run-real.bat               # Chạy Windows backend-only
+├─ README.md                  # Tài liệu tổng thể (EN)
+└─ README_VN.md               # Tài liệu tổng thể (VI)
 ```
 
-## 8) Các lệnh thường dùng
+## Checklist bảo mật
 
-```bash
-# chạy backend
-cd proxyapi_core && go run ./cmd/server
+- Không commit `proxyapi_core/config.yaml` thật có chứa secrets.
+- Không commit thư mục runtime (`logs/`, `auths/`, temp/cache data).
+- Nên xoay vòng `remote-management.secret-key` và API key định kỳ.
 
-# chạy nhanh backend-only (Windows helper)
-run-real.bat
+## Tham chiếu
 
-# chạy frontend dev
-cd frontend && npm run dev
-
-# build frontend
-cd frontend && npm run build
-```
-
-## 9) Lưu ý bảo mật trước khi public
-
-- Không commit `proxyapi_core/config.yaml` thật chứa key.
-- Không commit thư mục runtime: `logs/`, `auths/`, `temp/`, `conv/`.
-- Chỉ commit `config.example.yaml` và tài liệu hướng dẫn.
-
-## 10) Reference
-
-This project is adapted and referenced from:
+Dự án tham khảo từ:
 
 - https://github.com/router-for-me/CLIProxyAPI
 
-## 11) License
+## License
 
-This project is licensed under MIT. See `LICENSE`.
+MIT License. Xem [LICENSE](LICENSE).
