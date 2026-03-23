@@ -53,4 +53,4 @@ echo.
 echo  Press any key to open browser...
 pause > nul
 
-start "" "http://localhost:8317"
+start "" "http://localhost:5173"
