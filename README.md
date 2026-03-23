@@ -6,6 +6,15 @@ Admin dashboard + API proxy backend for CLI AI tools (OpenAI/Gemini/Claude/Codex
 
 ## Overview
 
+<p align="center">
+  <img src="docs/assets/01-dashboard.png" width="32%" alt="Dashboard" />
+  <img src="docs/assets/02-apikeys.png" width="32%" alt="API Keys" />
+  <img src="docs/assets/03-providers.png" width="32%" alt="Providers" />
+  <img src="docs/assets/04-chat.png" width="32%" alt="Chat Interface" />
+  <img src="docs/assets/05-logs.png" width="32%" alt="Logs" />
+  <img src="docs/assets/06-settings.png" width="32%" alt="Settings" />
+</p>
+
 This workspace is organized into 2 runtime parts:
 
 - `frontend/`: React + Vite + TypeScript management UI
